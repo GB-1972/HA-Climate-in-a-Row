@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.1.4';
+const CRC_VERSION = '1.1.5';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -264,9 +264,13 @@ class ClimateRowCard extends HTMLElement {
     temps.className = 'cr-temps';
     const target = document.createElement('div');
     target.className = 'cr-target';
+    const sep = document.createElement('div');
+    sep.className = 'cr-temps-sep';
+    sep.textContent = '/';
     const current = document.createElement('div');
     current.className = 'cr-current';
     temps.appendChild(target);
+    temps.appendChild(sep);
     temps.appendChild(current);
     root.appendChild(temps);
 
@@ -363,7 +367,7 @@ class ClimateRowCard extends HTMLElement {
     });
 
     return {
-      root, name, target, fill, thumb, current,
+      root, name, target, sep, fill, thumb, current,
       iconWrap, iconMain, actionBadge, actionBadgeIcon,
       windowIcon,
       hvacBtn, hvacIcon,
@@ -519,20 +523,32 @@ class ClimateRowCard extends HTMLElement {
       els.thumb.style.bottom = '';
     }
 
-    if (this._config.show_target) {
+    const targetShown = !!this._config.show_target;
+    if (targetShown) {
       els.target.style.display = '';
-      els.target.textContent = typeof targetRaw === 'number' ? this._fmtTemp(targetRaw) : '–';
+      els.target.textContent = typeof targetRaw === 'number'
+        ? `Soll ${this._fmtTemp(targetRaw)}`
+        : 'Soll –';
     } else {
       els.target.style.display = 'none';
     }
 
+    let currentShown = false;
     if (this._config.show_current) {
-      els.current.style.display = '';
       const cur = this._readCurrentTemp(item, so);
-      els.current.textContent = (cur !== null) ? `Raum ${this._fmtTemp(cur)}` : '';
+      if (cur !== null) {
+        els.current.style.display = '';
+        els.current.textContent = `Ist ${this._fmtTemp(cur)}`;
+        currentShown = true;
+      } else {
+        els.current.style.display = 'none';
+        els.current.textContent = '';
+      }
     } else {
       els.current.style.display = 'none';
     }
+
+    els.sep.style.display = (targetShown && currentShown) ? '' : 'none';
 
     const iconStr = item?.icon ?? so?.attributes?.icon ?? 'mdi:radiator';
     if (this._config.show_icon) {
@@ -754,6 +770,11 @@ class ClimateRowCard extends HTMLElement {
         white-space: nowrap;
       }
       .cr-current:empty { display: none; }
+      .cr-temps-sep {
+        font-size: 0.82rem;
+        color: var(--secondary-text-color);
+        opacity: 0.7;
+      }
 
       .cr-mid {
         display: flex; flex-direction: column;
