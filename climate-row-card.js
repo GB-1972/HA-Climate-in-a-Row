@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.0.0';
+const CRC_VERSION = '1.0.1';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -210,9 +210,7 @@ class ClimateRowCard extends HTMLElement {
     const action = document.createElement('div');
     action.className = 'cr-action';
     const actionIcon = document.createElement('ha-icon');
-    const actionLabel = document.createElement('span');
     action.appendChild(actionIcon);
-    action.appendChild(actionLabel);
     badges.appendChild(action);
 
     top.appendChild(badges);
@@ -287,7 +285,7 @@ class ClimateRowCard extends HTMLElement {
 
     return {
       root, name, target, fill, thumb, current,
-      windowIcon, action, actionIcon, actionLabel,
+      windowIcon, action, actionIcon,
       hvacBtn, hvacIcon, hvacLabel,
       presetSelect, minus, plus,
     };
@@ -461,8 +459,8 @@ class ClimateRowCard extends HTMLElement {
     if (this._config.show_hvac_action && act) {
       els.action.style.display = '';
       els.actionIcon.setAttribute('icon', HVAC_ACTION_ICONS[act] ?? 'mdi:thermostat');
-      els.actionLabel.textContent = HVAC_ACTION_LABELS[act] ?? act;
       els.action.dataset.action = act;
+      els.action.title = HVAC_ACTION_LABELS[act] ?? act;
     } else {
       els.action.style.display = 'none';
     }
@@ -585,18 +583,22 @@ class ClimateRowCard extends HTMLElement {
       }
       .cr-window { color: #ef4444; --mdc-icon-size: 20px; }
       .cr-action {
-        display: inline-flex; align-items: center; gap: 4px;
-        font-size: 0.72rem; font-weight: 600;
-        padding: 2px 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 26px; height: 26px;
+        padding: 0;
         background: rgba(127,127,127,0.14);
-        border-radius: 999px;
+        border-radius: 50%;
         color: var(--secondary-text-color);
-        white-space: nowrap;
       }
-      .cr-action ha-icon { --mdc-icon-size: 16px; }
-      .cr-action[data-action="heating"] { background: rgba(239,68,68,0.18); color: #ef4444; }
-      .cr-action[data-action="cooling"] { background: rgba(59,130,246,0.18); color: #3b82f6; }
-      .cr-action[data-action="off"] { opacity: 0.7; }
+      .cr-action ha-icon { --mdc-icon-size: 18px; }
+      .cr-action[data-action="heating"]    { background: rgba(239,68,68,0.18); color: #ef4444; }
+      .cr-action[data-action="preheating"] { background: rgba(239,68,68,0.18); color: #ef4444; }
+      .cr-action[data-action="idle"]       { background: rgba(59,130,246,0.18); color: #3b82f6; }
+      .cr-action[data-action="cooling"]    { background: rgba(6,182,212,0.18); color: #06b6d4; }
+      .cr-action[data-action="defrosting"] { background: rgba(6,182,212,0.18); color: #06b6d4; }
+      .cr-action[data-action="drying"]     { background: rgba(234,179,8,0.18); color: #d97706; }
+      .cr-action[data-action="fan"]        { background: rgba(20,184,166,0.18); color: #14b8a6; }
+      .cr-action[data-action="off"]        { opacity: 0.7; }
 
       .cr-target {
         font-size: 1.7rem; font-weight: 700;
@@ -625,10 +627,24 @@ class ClimateRowCard extends HTMLElement {
       .cr-vertical .cr-slider-wrap .cr-minus { order: 3; }
       .cr-horizontal .cr-slider-wrap {
         flex-direction: row;
+        gap: 4px;
       }
       .cr-horizontal .cr-slider-wrap .cr-minus { order: 1; }
       .cr-horizontal .cr-slider-wrap .cr-slider { order: 2; }
       .cr-horizontal .cr-slider-wrap .cr-plus  { order: 3; }
+
+      .cr-horizontal .cr-panel {
+        padding: 8px 10px;
+        gap: 4px;
+      }
+      .cr-horizontal .cr-top { min-height: 20px; }
+      .cr-horizontal .cr-target { font-size: 1.2rem; }
+      .cr-horizontal .cr-current { font-size: 0.72rem; }
+      .cr-horizontal .cr-btn { width: 32px; height: 26px; }
+      .cr-horizontal .cr-slider { height: 28px; padding: 4px; }
+      .cr-horizontal .cr-hvac-btn { padding: 4px 8px; font-size: 0.74rem; }
+      .cr-horizontal .cr-preset { padding: 4px 22px 4px 8px; font-size: 0.74rem; }
+      .cr-horizontal .cr-controls { margin-top: 0; gap: 4px; }
 
       .cr-btn {
         appearance: none; border: none;
