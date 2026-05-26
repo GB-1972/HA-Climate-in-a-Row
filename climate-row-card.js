@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.1.0';
+const CRC_VERSION = '1.1.1';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -1104,6 +1104,10 @@ class ClimateRowCardEditor extends HTMLElement {
         .crr-input:focus, .crr-select:focus {
           outline: none; border-color: var(--primary-color, #03a9f4);
         }
+        .crr-icon-picker {
+          width: 100%;
+          display: block;
+        }
         @media (max-width: 600px) {
           .crr-entity-fields {
             grid-template-columns: minmax(0, 1fr);
@@ -1154,6 +1158,7 @@ class ClimateRowCardEditor extends HTMLElement {
         if (iconIn && this.shadowRoot.activeElement !== iconIn) {
           const v = this._iconsByEntity[id] ?? '';
           if (iconIn.value !== v) iconIn.value = v;
+          if ('hass' in iconIn && iconIn.hass !== this._hass) iconIn.hass = this._hass;
         }
         if (wsel && this.shadowRoot.activeElement !== wsel) {
           this._populateBinarySensorOptions(wsel, this._windowsByEntity[id] ?? '');
@@ -1230,14 +1235,17 @@ class ClimateRowCardEditor extends HTMLElement {
       fields.className = 'crr-entity-fields';
 
       const iconLbl = document.createElement('label');
-      iconLbl.textContent = 'Icon (z. B. mdi:radiator)';
-      const iconInput = document.createElement('input');
-      iconInput.type = 'text';
-      iconInput.className = 'crr-input';
+      iconLbl.textContent = 'Icon';
       const stateIcon = this._hass?.states?.[id]?.attributes?.icon;
-      iconInput.placeholder = stateIcon || 'mdi:radiator';
-      iconInput.value = this._iconsByEntity[id] ?? '';
-      iconInput.addEventListener('input', () => this._onIconInput(id, iconInput.value));
+      const iconInput = this._makeIconPicker(this._iconsByEntity[id] ?? '', stateIcon || 'mdi:radiator');
+      if (iconInput.tagName.toLowerCase() === 'ha-icon-picker') {
+        iconInput.addEventListener('value-changed', (ev) => {
+          ev.stopPropagation();
+          this._onIconInput(id, ev.detail?.value ?? '');
+        });
+      } else {
+        iconInput.addEventListener('input', () => this._onIconInput(id, iconInput.value));
+      }
       iconLbl.appendChild(iconInput);
       fields.appendChild(iconLbl);
 
@@ -1277,6 +1285,23 @@ class ClimateRowCardEditor extends HTMLElement {
       this._windowSelectors[id] = winSel;
       this._currentSensorSelectors[id] = curSel;
     });
+  }
+
+  _makeIconPicker(value, placeholder) {
+    if (customElements.get('ha-icon-picker')) {
+      const picker = document.createElement('ha-icon-picker');
+      picker.className = 'crr-icon-picker';
+      if (this._hass) picker.hass = this._hass;
+      picker.value = value || '';
+      if (placeholder) picker.placeholder = placeholder;
+      return picker;
+    }
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'crr-input';
+    input.placeholder = placeholder || 'mdi:radiator';
+    input.value = value || '';
+    return input;
   }
 
   _populateBinarySensorOptions(sel, currentValue) {
