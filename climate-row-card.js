@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.1.1';
+const CRC_VERSION = '1.1.2';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -274,9 +274,7 @@ class ClimateRowCard extends HTMLElement {
     hvacBtn.type = 'button';
     hvacBtn.title = 'HVAC-Mode wechseln';
     const hvacIcon = document.createElement('ha-icon');
-    const hvacLabel = document.createElement('span');
     hvacBtn.appendChild(hvacIcon);
-    hvacBtn.appendChild(hvacLabel);
     hvacBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const so = this._hass?.states?.[item.entity];
@@ -306,7 +304,7 @@ class ClimateRowCard extends HTMLElement {
       root, name, target, fill, thumb, current,
       iconWrap, iconMain, actionBadge, actionBadgeIcon,
       windowIcon,
-      hvacBtn, hvacIcon, hvacLabel,
+      hvacBtn, hvacIcon,
       presetSelect, minus, plus,
     };
   }
@@ -502,7 +500,7 @@ class ClimateRowCard extends HTMLElement {
       els.hvacBtn.style.display = '';
       const mode = so?.state ?? 'off';
       els.hvacIcon.setAttribute('icon', HVAC_MODE_ICONS[mode] ?? 'mdi:thermostat');
-      els.hvacLabel.textContent = HVAC_MODE_LABELS[mode] ?? mode;
+      els.hvacBtn.title = HVAC_MODE_LABELS[mode] ?? mode;
       els.hvacBtn.classList.toggle('cr-hvac-on', mode !== 'off');
       els.hvacBtn.dataset.mode = mode;
       els.hvacBtn.disabled = unavailable;
@@ -717,7 +715,8 @@ class ClimateRowCard extends HTMLElement {
       .cr-horizontal .cr-current { font-size: 0.72rem; }
       .cr-horizontal .cr-btn { width: 32px; height: 26px; }
       .cr-horizontal .cr-slider { height: 28px; padding: 4px; }
-      .cr-horizontal .cr-hvac-btn { padding: 4px 8px; font-size: 0.74rem; }
+      .cr-horizontal .cr-hvac-btn { width: 32px; height: 26px; }
+      .cr-horizontal .cr-hvac-btn ha-icon { --mdc-icon-size: 18px; }
       .cr-horizontal .cr-preset {
         padding: 4px 22px 4px 8px; font-size: 0.74rem;
         flex: 0 1 130px; min-width: 90px; max-width: 160px;
@@ -804,14 +803,14 @@ class ClimateRowCard extends HTMLElement {
         background: rgba(127,127,127,0.14);
         color: var(--secondary-text-color);
         border-radius: 10px;
-        padding: 6px 10px;
-        display: inline-flex; align-items: center; gap: 6px;
-        font-size: 0.78rem; font-weight: 600;
+        width: 36px; height: 30px;
+        padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
         cursor: pointer; flex: 0 0 auto;
-        transition: background-color 120ms ease, color 120ms ease;
-        white-space: nowrap;
+        transition: background-color 120ms ease, color 120ms ease, transform 80ms ease;
       }
       .cr-hvac-btn:hover { background: rgba(127,127,127,0.22); }
+      .cr-hvac-btn:active { transform: scale(0.92); }
       .cr-hvac-btn.cr-hvac-on {
         background: rgba(239,68,68,0.18);
         color: #ef4444;
@@ -822,8 +821,8 @@ class ClimateRowCard extends HTMLElement {
       }
       .cr-hvac-btn[data-mode="dry"] { background: rgba(234,179,8,0.18); color: #d97706; }
       .cr-hvac-btn[data-mode="fan_only"] { background: rgba(20,184,166,0.18); color: #14b8a6; }
-      .cr-hvac-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-      .cr-hvac-btn ha-icon { --mdc-icon-size: 18px; }
+      .cr-hvac-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+      .cr-hvac-btn ha-icon { --mdc-icon-size: 20px; }
 
       .cr-preset {
         appearance: none;
