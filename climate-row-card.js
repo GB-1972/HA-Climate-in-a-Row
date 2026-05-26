@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.1.2';
+const CRC_VERSION = '1.1.3';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -37,6 +37,27 @@ const HVAC_MODE_ICONS = {
   dry: 'mdi:water-percent',
   fan_only: 'mdi:fan',
 };
+
+const PRESET_ICONS = {
+  none: 'mdi:circle-off-outline',
+  eco: 'mdi:leaf',
+  away: 'mdi:home-export-outline',
+  boost: 'mdi:rocket-launch',
+  comfort: 'mdi:sofa',
+  home: 'mdi:home',
+  sleep: 'mdi:bed',
+  night: 'mdi:weather-night',
+  activity: 'mdi:run',
+  hold: 'mdi:thermometer-lock',
+  temperature_hold: 'mdi:thermometer-lock',
+  heat_protection: 'mdi:shield-sun',
+  frost: 'mdi:snowflake-alert',
+  'frost protection': 'mdi:snowflake-alert',
+  auto: 'mdi:autorenew',
+  manual: 'mdi:gesture-tap',
+  schedule: 'mdi:calendar-clock',
+};
+const presetIcon = (p) => PRESET_ICONS[String(p).toLowerCase()] ?? 'mdi:tune-variant';
 
 const HVAC_MODE_LABELS = {
   off: 'aus',
@@ -282,15 +303,46 @@ class ClimateRowCard extends HTMLElement {
     });
     controls.appendChild(hvacBtn);
 
-    const presetSelect = document.createElement('select');
-    presetSelect.className = 'cr-preset';
-    presetSelect.title = 'Preset';
-    presetSelect.addEventListener('change', (e) => {
+    const preset = document.createElement('div');
+    preset.className = 'cr-preset';
+    preset.dataset.open = 'false';
+    const presetBtn = document.createElement('button');
+    presetBtn.type = 'button';
+    presetBtn.className = 'cr-preset-btn';
+    presetBtn.title = 'Preset';
+    const presetBtnIcon = document.createElement('ha-icon');
+    presetBtn.appendChild(presetBtnIcon);
+    const presetMenu = document.createElement('div');
+    presetMenu.className = 'cr-preset-menu';
+    presetMenu.setAttribute('role', 'menu');
+    preset.appendChild(presetBtn);
+    preset.appendChild(presetMenu);
+
+    let outsideHandler = null;
+    const closePresetMenu = () => {
+      preset.dataset.open = 'false';
+      if (outsideHandler) {
+        document.removeEventListener('click', outsideHandler, true);
+        outsideHandler = null;
+      }
+    };
+    const openPresetMenu = () => {
+      preset.dataset.open = 'true';
+      // Defer so the opening click does not itself close us
+      setTimeout(() => {
+        outsideHandler = (ev) => {
+          if (!ev.composedPath().includes(preset)) closePresetMenu();
+        };
+        document.addEventListener('click', outsideHandler, true);
+      }, 0);
+    };
+    presetBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const value = presetSelect.value;
-      if (value) this._setPreset(item.entity, value);
+      if (preset.dataset.open === 'true') closePresetMenu();
+      else openPresetMenu();
     });
-    controls.appendChild(presetSelect);
+
+    controls.appendChild(preset);
 
     mid.appendChild(controls);
     root.appendChild(mid);
@@ -305,7 +357,8 @@ class ClimateRowCard extends HTMLElement {
       iconWrap, iconMain, actionBadge, actionBadgeIcon,
       windowIcon,
       hvacBtn, hvacIcon,
-      presetSelect, minus, plus,
+      preset, presetBtn, presetBtnIcon, presetMenu, closePresetMenu,
+      minus, plus,
     };
   }
 
@@ -512,25 +565,42 @@ class ClimateRowCard extends HTMLElement {
       const presets = Array.isArray(so?.attributes?.preset_modes) ? so.attributes.preset_modes : [];
       const current = so?.attributes?.preset_mode ?? '';
       if (presets.length === 0) {
-        els.presetSelect.style.display = 'none';
+        els.preset.style.display = 'none';
       } else {
-        els.presetSelect.style.display = '';
-        const existing = Array.from(els.presetSelect.options).map((o) => o.value);
+        els.preset.style.display = '';
+        const existing = Array.from(els.presetMenu.querySelectorAll('.cr-preset-item')).map((b) => b.dataset.value);
         const same = existing.length === presets.length && presets.every((p, i) => existing[i] === p);
         if (!same) {
-          els.presetSelect.innerHTML = '';
+          els.presetMenu.innerHTML = '';
           for (const p of presets) {
-            const opt = document.createElement('option');
-            opt.value = p;
-            opt.textContent = p;
-            els.presetSelect.appendChild(opt);
+            const itemBtn = document.createElement('button');
+            itemBtn.type = 'button';
+            itemBtn.className = 'cr-preset-item';
+            itemBtn.dataset.value = p;
+            const ic = document.createElement('ha-icon');
+            ic.setAttribute('icon', presetIcon(p));
+            const lbl = document.createElement('span');
+            lbl.textContent = p;
+            itemBtn.appendChild(ic);
+            itemBtn.appendChild(lbl);
+            itemBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this._setPreset(entityId, p);
+              els.closePresetMenu();
+            });
+            els.presetMenu.appendChild(itemBtn);
           }
         }
-        if (els.presetSelect.value !== current) els.presetSelect.value = current;
-        els.presetSelect.disabled = unavailable;
+        const items = els.presetMenu.querySelectorAll('.cr-preset-item');
+        items.forEach((it) => it.classList.toggle('cr-preset-active', it.dataset.value === current));
+        els.presetBtnIcon.setAttribute('icon', presetIcon(current || presets[0]));
+        els.presetBtn.title = `Preset: ${current || '–'}`;
+        els.presetBtn.disabled = unavailable;
+        if (unavailable) els.closePresetMenu();
       }
     } else {
-      els.presetSelect.style.display = 'none';
+      els.preset.style.display = 'none';
+      els.closePresetMenu();
     }
 
     els.root.classList.toggle('cr-unavailable', unavailable);
@@ -572,7 +642,7 @@ class ClimateRowCard extends HTMLElement {
         --cr-radius: 14px;
         --cr-slider-size: ${this._config.slider_size || 140}px;
       }
-      .cr-card { padding: 14px 12px 12px; }
+      .cr-card { padding: 14px 12px 12px; overflow: visible; }
       .cr-header {
         display: flex; align-items: center; gap: 8px;
         font-size: 1.05rem; font-weight: 600;
@@ -717,10 +787,8 @@ class ClimateRowCard extends HTMLElement {
       .cr-horizontal .cr-slider { height: 28px; padding: 4px; }
       .cr-horizontal .cr-hvac-btn { width: 32px; height: 26px; }
       .cr-horizontal .cr-hvac-btn ha-icon { --mdc-icon-size: 18px; }
-      .cr-horizontal .cr-preset {
-        padding: 4px 22px 4px 8px; font-size: 0.74rem;
-        flex: 0 1 130px; min-width: 90px; max-width: 160px;
-      }
+      .cr-horizontal .cr-preset-btn { width: 32px; height: 26px; }
+      .cr-horizontal .cr-preset-btn ha-icon { --mdc-icon-size: 18px; }
       .cr-horizontal .cr-controls { margin-top: 0; gap: 4px; flex-wrap: nowrap; }
 
       .cr-btn {
@@ -825,22 +893,67 @@ class ClimateRowCard extends HTMLElement {
       .cr-hvac-btn ha-icon { --mdc-icon-size: 20px; }
 
       .cr-preset {
-        appearance: none;
-        flex: 1 1 100px;
-        font: inherit;
-        font-size: 0.78rem;
-        padding: 6px 24px 6px 10px;
-        border-radius: 10px;
-        border: none;
-        background-color: rgba(127,127,127,0.14);
-        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 8px center;
-        color: var(--primary-text-color);
-        cursor: pointer;
-        min-width: 0;
+        position: relative;
+        flex: 0 0 auto;
       }
-      .cr-preset:disabled { opacity: 0.4; cursor: not-allowed; }
+      .cr-preset-btn {
+        appearance: none; border: none;
+        background: rgba(127,127,127,0.14);
+        color: var(--secondary-text-color);
+        border-radius: 10px;
+        width: 36px; height: 30px;
+        padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        transition: background-color 120ms ease, color 120ms ease, transform 80ms ease;
+      }
+      .cr-preset-btn:hover { background: rgba(127,127,127,0.22); color: var(--cr-accent); }
+      .cr-preset-btn:active { transform: scale(0.92); }
+      .cr-preset-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+      .cr-preset-btn ha-icon { --mdc-icon-size: 20px; }
+      .cr-preset[data-open="true"] .cr-preset-btn {
+        background: rgba(127,127,127,0.28);
+        color: var(--cr-accent);
+      }
+
+      .cr-preset-menu {
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + 6px);
+        min-width: 160px;
+        max-height: 260px;
+        overflow-y: auto;
+        background: var(--ha-card-background, var(--card-background-color));
+        color: var(--primary-text-color);
+        border: 1px solid var(--divider-color, rgba(127,127,127,0.25));
+        border-radius: 10px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+        padding: 4px;
+        z-index: 50;
+        display: none;
+      }
+      .cr-preset[data-open="true"] .cr-preset-menu { display: block; }
+      .cr-preset-item {
+        appearance: none; border: none;
+        background: transparent;
+        color: var(--primary-text-color);
+        width: 100%;
+        display: flex; align-items: center; gap: 10px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        font: inherit; font-size: 0.85rem;
+        cursor: pointer;
+        text-align: left;
+        white-space: nowrap;
+      }
+      .cr-preset-item:hover { background: rgba(127,127,127,0.14); }
+      .cr-preset-item ha-icon { --mdc-icon-size: 18px; color: var(--secondary-text-color); }
+      .cr-preset-item.cr-preset-active {
+        background: rgba(127,127,127,0.18);
+        color: var(--cr-accent);
+        font-weight: 600;
+      }
+      .cr-preset-item.cr-preset-active ha-icon { color: var(--cr-accent); }
 
       .cr-unavailable { opacity: 0.45; pointer-events: none; filter: grayscale(0.6); }
 
