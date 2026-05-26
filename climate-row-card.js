@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.0.3';
+const CRC_VERSION = '1.1.0';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -83,6 +83,9 @@ class ClimateRowCard extends HTMLElement {
       if (obj.current_sensor && (typeof obj.current_sensor !== 'string' || !obj.current_sensor.startsWith('sensor.'))) {
         throw new Error(`Eintrag ${i + 1}: 'current_sensor' muss eine sensor-Entitaet sein.`);
       }
+      if (obj.icon !== undefined && obj.icon !== null && typeof obj.icon !== 'string') {
+        throw new Error(`Eintrag ${i + 1}: 'icon' muss ein String sein (z. B. mdi:radiator).`);
+      }
       return obj;
     });
 
@@ -119,6 +122,7 @@ class ClimateRowCard extends HTMLElement {
       stacks: stacksRaw,
       _flowColumn: flowColumn,
       _rows: rows,
+      show_icon: config.show_icon !== false,
       show_name: config.show_name !== false,
       show_target: config.show_target !== false,
       show_current: config.show_current !== false,
@@ -197,6 +201,18 @@ class ClimateRowCard extends HTMLElement {
     const top = document.createElement('div');
     top.className = 'cr-top';
 
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'cr-icon-wrap';
+    const iconMain = document.createElement('ha-icon');
+    iconMain.className = 'cr-icon-main';
+    const actionBadge = document.createElement('div');
+    actionBadge.className = 'cr-action-badge';
+    const actionBadgeIcon = document.createElement('ha-icon');
+    actionBadge.appendChild(actionBadgeIcon);
+    iconWrap.appendChild(iconMain);
+    iconWrap.appendChild(actionBadge);
+    top.appendChild(iconWrap);
+
     const name = document.createElement('div');
     name.className = 'cr-name';
     top.appendChild(name);
@@ -209,12 +225,6 @@ class ClimateRowCard extends HTMLElement {
     windowIcon.setAttribute('icon', 'mdi:window-open-variant');
     windowIcon.title = 'Fenster offen';
     badges.appendChild(windowIcon);
-
-    const action = document.createElement('div');
-    action.className = 'cr-action';
-    const actionIcon = document.createElement('ha-icon');
-    action.appendChild(actionIcon);
-    badges.appendChild(action);
 
     top.appendChild(badges);
     root.appendChild(top);
@@ -294,7 +304,8 @@ class ClimateRowCard extends HTMLElement {
 
     return {
       root, name, target, fill, thumb, current,
-      windowIcon, action, actionIcon,
+      iconWrap, iconMain, actionBadge, actionBadgeIcon,
+      windowIcon,
       hvacBtn, hvacIcon, hvacLabel,
       presetSelect, minus, plus,
     };
@@ -462,14 +473,22 @@ class ClimateRowCard extends HTMLElement {
       els.current.style.display = 'none';
     }
 
-    const act = so?.attributes?.hvac_action;
-    if (this._config.show_hvac_action && act) {
-      els.action.style.display = '';
-      els.actionIcon.setAttribute('icon', HVAC_ACTION_ICONS[act] ?? 'mdi:thermostat');
-      els.action.dataset.action = act;
-      els.action.title = HVAC_ACTION_LABELS[act] ?? act;
+    const iconStr = item?.icon ?? so?.attributes?.icon ?? 'mdi:radiator';
+    if (this._config.show_icon) {
+      els.iconWrap.style.display = '';
+      els.iconMain.setAttribute('icon', iconStr);
     } else {
-      els.action.style.display = 'none';
+      els.iconWrap.style.display = 'none';
+    }
+
+    const act = so?.attributes?.hvac_action;
+    if (this._config.show_icon && this._config.show_hvac_action && act) {
+      els.actionBadge.style.display = '';
+      els.actionBadgeIcon.setAttribute('icon', HVAC_ACTION_ICONS[act] ?? 'mdi:thermostat');
+      els.actionBadge.dataset.action = act;
+      els.actionBadge.title = HVAC_ACTION_LABELS[act] ?? act;
+    } else {
+      els.actionBadge.style.display = 'none';
     }
 
     if (this._config.show_window) {
@@ -601,23 +620,36 @@ class ClimateRowCard extends HTMLElement {
         flex: 0 0 auto;
       }
       .cr-window { color: #ef4444; --mdc-icon-size: 20px; }
-      .cr-action {
+
+      .cr-icon-wrap {
+        position: relative;
+        flex: 0 0 auto;
+        width: 32px; height: 32px;
         display: inline-flex; align-items: center; justify-content: center;
-        width: 26px; height: 26px;
-        padding: 0;
-        background: rgba(127,127,127,0.14);
-        border-radius: 50%;
-        color: var(--secondary-text-color);
       }
-      .cr-action ha-icon { --mdc-icon-size: 18px; }
-      .cr-action[data-action="heating"]    { background: rgba(239,68,68,0.18); color: #ef4444; }
-      .cr-action[data-action="preheating"] { background: rgba(239,68,68,0.18); color: #ef4444; }
-      .cr-action[data-action="idle"]       { background: rgba(59,130,246,0.18); color: #3b82f6; }
-      .cr-action[data-action="cooling"]    { background: rgba(6,182,212,0.18); color: #06b6d4; }
-      .cr-action[data-action="defrosting"] { background: rgba(6,182,212,0.18); color: #06b6d4; }
-      .cr-action[data-action="drying"]     { background: rgba(234,179,8,0.18); color: #d97706; }
-      .cr-action[data-action="fan"]        { background: rgba(20,184,166,0.18); color: #14b8a6; }
-      .cr-action[data-action="off"]        { opacity: 0.7; }
+      .cr-icon-main {
+        --mdc-icon-size: 28px;
+        color: var(--cr-accent);
+      }
+      .cr-action-badge {
+        position: absolute;
+        right: -3px; bottom: -2px;
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(127,127,127,0.5);
+        color: #fff;
+        box-shadow: 0 0 0 2px var(--ha-card-background, var(--card-background-color));
+      }
+      .cr-action-badge ha-icon { --mdc-icon-size: 12px; }
+      .cr-action-badge[data-action="heating"],
+      .cr-action-badge[data-action="preheating"] { background: #ef4444; }
+      .cr-action-badge[data-action="idle"]       { background: #3b82f6; }
+      .cr-action-badge[data-action="cooling"],
+      .cr-action-badge[data-action="defrosting"] { background: #06b6d4; }
+      .cr-action-badge[data-action="drying"]     { background: #d97706; }
+      .cr-action-badge[data-action="fan"]        { background: #14b8a6; }
+      .cr-action-badge[data-action="off"]        { background: rgba(127,127,127,0.7); }
 
       .cr-temps {
         display: flex;
@@ -836,6 +868,7 @@ const EDITOR_LABELS = {
   cols: 'Spalten (row-fill, ignoriert wenn Stapel gesetzt)',
   accent_color: 'Akzentfarbe',
   track_color: 'Schienen-Farbe',
+  show_icon: 'Icon anzeigen (mit HVAC-Action-Badge)',
   show_name: 'Name anzeigen',
   show_target: 'Solltemperatur anzeigen',
   show_current: 'Raumtemperatur anzeigen',
@@ -888,6 +921,7 @@ const EDITOR_SCHEMA_BASE = [
   {
     type: 'grid', name: '',
     schema: [
+      { name: 'show_icon', selector: { boolean: {} } },
       { name: 'show_name', selector: { boolean: {} } },
       { name: 'show_target', selector: { boolean: {} } },
       { name: 'show_current', selector: { boolean: {} } },
@@ -907,10 +941,12 @@ class ClimateRowCardEditor extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this._config = {};
     this._namesByEntity = {};
+    this._iconsByEntity = {};
     this._windowsByEntity = {};
     this._currentSensorsByEntity = {};
     this._lastNamesKey = '';
     this._nameInputs = {};
+    this._iconInputs = {};
     this._windowSelectors = {};
     this._currentSensorSelectors = {};
   }
@@ -918,12 +954,14 @@ class ClimateRowCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = config || {};
     this._namesByEntity = {};
+    this._iconsByEntity = {};
     this._windowsByEntity = {};
     this._currentSensorsByEntity = {};
     if (Array.isArray(this._config.entities)) {
       for (const e of this._config.entities) {
         if (e && typeof e === 'object' && e.entity) {
           if (e.name) this._namesByEntity[e.entity] = e.name;
+          if (e.icon) this._iconsByEntity[e.entity] = e.icon;
           if (e.window) this._windowsByEntity[e.entity] = e.window;
           if (e.current_sensor) this._currentSensorsByEntity[e.entity] = e.current_sensor;
         }
@@ -955,6 +993,7 @@ class ClimateRowCardEditor extends HTMLElement {
       cols: typeof this._config.cols === 'number' ? this._config.cols : 0,
       accent_color: this._config.accent_color ?? '#ef4444',
       track_color: this._config.track_color ?? 'rgba(127,127,127,0.18)',
+      show_icon: this._config.show_icon !== false,
       show_name: this._config.show_name !== false,
       show_target: this._config.show_target !== false,
       show_current: this._config.show_current !== false,
@@ -1003,8 +1042,33 @@ class ClimateRowCardEditor extends HTMLElement {
           background: rgba(127,127,127,0.04);
         }
         .crr-entity-head {
-          display: flex; flex-direction: column;
+          display: flex; flex-direction: row;
+          align-items: center; gap: 8px;
           min-width: 0;
+        }
+        .crr-entity-reorder {
+          display: inline-flex; flex-direction: column;
+          gap: 2px; flex: 0 0 auto;
+        }
+        .crr-reorder-btn {
+          appearance: none; border: none;
+          background: rgba(127,127,127,0.14);
+          color: var(--secondary-text-color);
+          border-radius: 4px;
+          width: 24px; height: 16px;
+          display: inline-flex; align-items: center; justify-content: center;
+          cursor: pointer; padding: 0;
+          font-size: 11px; line-height: 1;
+          transition: background-color 120ms ease, color 120ms ease;
+        }
+        .crr-reorder-btn:hover {
+          background: rgba(127,127,127,0.25);
+          color: var(--primary-color, #03a9f4);
+        }
+        .crr-reorder-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .crr-entity-meta {
+          display: flex; flex-direction: column;
+          min-width: 0; flex: 1 1 auto;
         }
         .crr-entity-friendly {
           font-size: 0.85rem; font-weight: 600;
@@ -1018,7 +1082,7 @@ class ClimateRowCardEditor extends HTMLElement {
         }
         .crr-entity-fields {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           gap: 6px 8px;
         }
         .crr-entity-fields label {
@@ -1079,12 +1143,17 @@ class ClimateRowCardEditor extends HTMLElement {
 
     if (key === this._lastNamesKey) {
       for (const id of entities) {
-        const input = this._nameInputs[id];
+        const nameIn = this._nameInputs[id];
+        const iconIn = this._iconInputs[id];
         const wsel = this._windowSelectors[id];
         const csel = this._currentSensorSelectors[id];
-        if (input && this.shadowRoot.activeElement !== input) {
+        if (nameIn && this.shadowRoot.activeElement !== nameIn) {
           const v = this._namesByEntity[id] ?? '';
-          if (input.value !== v) input.value = v;
+          if (nameIn.value !== v) nameIn.value = v;
+        }
+        if (iconIn && this.shadowRoot.activeElement !== iconIn) {
+          const v = this._iconsByEntity[id] ?? '';
+          if (iconIn.value !== v) iconIn.value = v;
         }
         if (wsel && this.shadowRoot.activeElement !== wsel) {
           this._populateBinarySensorOptions(wsel, this._windowsByEntity[id] ?? '');
@@ -1099,6 +1168,7 @@ class ClimateRowCardEditor extends HTMLElement {
     this._lastNamesKey = key;
     this._entitiesSection.innerHTML = '';
     this._nameInputs = {};
+    this._iconInputs = {};
     this._windowSelectors = {};
     this._currentSensorSelectors = {};
     if (!entities.length) return;
@@ -1108,16 +1178,39 @@ class ClimateRowCardEditor extends HTMLElement {
     heading.textContent = 'Pro Thermostat: Name + Fensterkontakt';
     const sub = document.createElement('div');
     sub.className = 'crr-entities-sub';
-    sub.textContent = 'Name leer = Friendly-Name verwenden. Fensterkontakt leer = kein Fenster-Symbol fuer dieses Thermostat.';
+    sub.textContent = 'Reihenfolge per ▲/▼. Name leer = Friendly-Name. Icon leer = Entity-Icon oder mdi:radiator.';
     this._entitiesSection.appendChild(heading);
     this._entitiesSection.appendChild(sub);
 
-    for (const id of entities) {
+    entities.forEach((id, idx) => {
       const row = document.createElement('div');
       row.className = 'crr-entity-row';
 
       const head = document.createElement('div');
       head.className = 'crr-entity-head';
+
+      const reorder = document.createElement('div');
+      reorder.className = 'crr-entity-reorder';
+      const upBtn = document.createElement('button');
+      upBtn.type = 'button';
+      upBtn.className = 'crr-reorder-btn';
+      upBtn.textContent = '▲';
+      upBtn.title = 'Nach oben';
+      upBtn.disabled = idx === 0;
+      upBtn.addEventListener('click', (ev) => { ev.preventDefault(); this._moveEntity(id, -1); });
+      const downBtn = document.createElement('button');
+      downBtn.type = 'button';
+      downBtn.className = 'crr-reorder-btn';
+      downBtn.textContent = '▼';
+      downBtn.title = 'Nach unten';
+      downBtn.disabled = idx === entities.length - 1;
+      downBtn.addEventListener('click', (ev) => { ev.preventDefault(); this._moveEntity(id, +1); });
+      reorder.appendChild(upBtn);
+      reorder.appendChild(downBtn);
+      head.appendChild(reorder);
+
+      const meta = document.createElement('div');
+      meta.className = 'crr-entity-meta';
       const friendly = this._hass?.states?.[id]?.attributes?.friendly_name ?? id;
       const f = document.createElement('span');
       f.className = 'crr-entity-friendly';
@@ -1127,12 +1220,26 @@ class ClimateRowCardEditor extends HTMLElement {
       e.className = 'crr-entity-id';
       e.textContent = id;
       e.title = id;
-      head.appendChild(f);
-      head.appendChild(e);
+      meta.appendChild(f);
+      meta.appendChild(e);
+      head.appendChild(meta);
+
       row.appendChild(head);
 
       const fields = document.createElement('div');
       fields.className = 'crr-entity-fields';
+
+      const iconLbl = document.createElement('label');
+      iconLbl.textContent = 'Icon (z. B. mdi:radiator)';
+      const iconInput = document.createElement('input');
+      iconInput.type = 'text';
+      iconInput.className = 'crr-input';
+      const stateIcon = this._hass?.states?.[id]?.attributes?.icon;
+      iconInput.placeholder = stateIcon || 'mdi:radiator';
+      iconInput.value = this._iconsByEntity[id] ?? '';
+      iconInput.addEventListener('input', () => this._onIconInput(id, iconInput.value));
+      iconLbl.appendChild(iconInput);
+      fields.appendChild(iconLbl);
 
       const nameLbl = document.createElement('label');
       nameLbl.textContent = 'Name';
@@ -1155,7 +1262,6 @@ class ClimateRowCardEditor extends HTMLElement {
       fields.appendChild(winLbl);
 
       const curLbl = document.createElement('label');
-      curLbl.className = 'crr-full';
       curLbl.textContent = 'Ist-Temperatur-Sensor (extern, optional)';
       const curSel = document.createElement('select');
       curSel.className = 'crr-select';
@@ -1167,9 +1273,10 @@ class ClimateRowCardEditor extends HTMLElement {
       row.appendChild(fields);
       this._entitiesSection.appendChild(row);
       this._nameInputs[id] = nameInput;
+      this._iconInputs[id] = iconInput;
       this._windowSelectors[id] = winSel;
       this._currentSensorSelectors[id] = curSel;
-    }
+    });
   }
 
   _populateBinarySensorOptions(sel, currentValue) {
@@ -1236,12 +1343,35 @@ class ClimateRowCardEditor extends HTMLElement {
     this._emitConfig();
   }
 
+  _onIconInput(entityId, raw) {
+    const v = (raw ?? '').trim();
+    if (v) this._iconsByEntity[entityId] = v;
+    else delete this._iconsByEntity[entityId];
+    this._emitConfig();
+  }
+
+  _moveEntity(entityId, delta) {
+    const ids = this._selectedEntityIds().slice();
+    const idx = ids.indexOf(entityId);
+    const target = idx + delta;
+    if (idx < 0 || target < 0 || target >= ids.length) return;
+    [ids[idx], ids[target]] = [ids[target], ids[idx]];
+    const entities = ids.map((id) => this._buildEntityEntry(id));
+    this._config = { ...this._config, entities };
+    this._lastNamesKey = '';
+    this.dispatchEvent(
+      new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true })
+    );
+  }
+
   _buildEntityEntry(id) {
     const name = this._namesByEntity[id];
+    const icon = this._iconsByEntity[id];
     const win = this._windowsByEntity[id];
     const cur = this._currentSensorsByEntity[id];
-    if (name || win || cur) {
+    if (name || icon || win || cur) {
       const obj = { entity: id };
+      if (icon) obj.icon = icon;
       if (name) obj.name = name;
       if (win) obj.window = win;
       if (cur) obj.current_sensor = cur;
@@ -1265,7 +1395,7 @@ class ClimateRowCardEditor extends HTMLElement {
 
     if (Array.isArray(value.entities)) {
       const stillSelected = new Set(value.entities);
-      for (const map of [this._namesByEntity, this._windowsByEntity, this._currentSensorsByEntity]) {
+      for (const map of [this._namesByEntity, this._iconsByEntity, this._windowsByEntity, this._currentSensorsByEntity]) {
         for (const k of Object.keys(map)) {
           if (!stillSelected.has(k)) delete map[k];
         }
@@ -1283,7 +1413,7 @@ class ClimateRowCardEditor extends HTMLElement {
       if (next[k] === 0 || next[k] === null || next[k] === undefined) delete next[k];
     }
     if (next.slider_size === 140) delete next.slider_size;
-    for (const k of ['show_name', 'show_target', 'show_current', 'show_hvac_action', 'show_window', 'show_preset', 'show_hvac_toggle']) {
+    for (const k of ['show_icon', 'show_name', 'show_target', 'show_current', 'show_hvac_action', 'show_window', 'show_preset', 'show_hvac_toggle']) {
       if (value[k] !== undefined) next[k] = value[k];
       if (next[k] === true) delete next[k];
     }

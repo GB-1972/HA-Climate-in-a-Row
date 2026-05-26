@@ -95,6 +95,7 @@ entities:
 | `cols` | number | =Anzahl Entities (vertikal) bzw. `1` (horizontal) | Spalten pro Reihe (row-fill). `0`/unset → Default je nach Orientation. |
 | `accent_color` | string | `#ef4444` | CSS-Farbe für Slider, Fill, Thumb, aktive Buttons. |
 | `track_color` | string | `rgba(127,127,127,0.18)` | Hintergrundfarbe der Slider-Schiene. |
+| `show_icon` | boolean | `true` | Icon vor dem Namen (mit HVAC-Action-Badge in der unteren rechten Ecke). |
 | `show_name` | boolean | `true` | Name oben links. |
 | `show_target` | boolean | `true` | Solltemperatur (groß). |
 | `show_current` | boolean | `true` | Raumtemperatur (klein, unter dem Slider). |
@@ -111,12 +112,19 @@ In Objekt-Form `entities:`:
 |---|---|---|
 | `entity` | string (Pflicht) | `climate.*`-ID des Thermostats. |
 | `name` | string | Anzeigename. Leer/unset → Friendly-Name der Entität. |
+| `icon` | string | MDI-Icon vor dem Namen (z. B. `mdi:radiator-fan`). Ohne Angabe wird das Icon der Climate-Entität verwendet, sonst `mdi:radiator`. |
 | `window` | string | `binary_sensor.*`-ID des zugeordneten Fensterkontakts. Wenn der Sensor `on` ist, erscheint das Fenster-Symbol. Ohne `window` wird nie ein Symbol angezeigt. |
 | `current_sensor` | string | `sensor.*`-ID eines externen Ist-Temperatur-Sensors. Wenn gesetzt und der Sensor liefert eine Zahl, wird dieser Wert als Raumtemperatur angezeigt. Ohne `current_sensor` wird das `current_temperature`-Attribut der Climate-Entität verwendet. |
 
 ### UI-Editor
 
-Beim Hinzufügen der Karte ist der **visuelle Editor** der Default. Du wählst Entities per Multi-Picker (Cover-Filter — pardon, **Climate-Filter**), setzt Orientation, Slider-Länge, Layout (Stapel/Spalten), Farben und Anzeige-Schalter. Darunter erscheint pro ausgewähltem Thermostat ein eigener Block mit Texteingabe für den **Namen** und einem Dropdown für den **Fensterkontakt** (alle `binary_sensor`-Entitäten deiner Instanz, alphabetisch sortiert).
+Beim Hinzufügen der Karte ist der **visuelle Editor** der Default. Du wählst Entities per Multi-Picker (**Climate-Filter**), setzt Orientation, Slider-Länge, Layout (Stapel/Spalten), Farben und Anzeige-Schalter (inkl. neuem `show_icon`). Darunter erscheint pro ausgewähltem Thermostat ein eigener Block mit:
+
+- **▲ / ▼**-Buttons zum **Verschieben der Reihenfolge** (deaktiviert an den Listenenden).
+- **Icon** (MDI-String, optional).
+- **Name** (optional).
+- **Fensterkontakt** (Dropdown, alle `binary_sensor`-Entitäten).
+- **Ist-Temperatur-Sensor** (Dropdown, nur Sensoren mit `device_class: temperature` oder Einheit `°C` / `°F`).
 
 ### Verhalten der Bedienelemente
 
