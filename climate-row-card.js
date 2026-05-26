@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.0.2';
+const CRC_VERSION = '1.0.3';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -79,6 +79,9 @@ class ClimateRowCard extends HTMLElement {
       }
       if (obj.window && (typeof obj.window !== 'string' || !obj.window.startsWith('binary_sensor.'))) {
         throw new Error(`Eintrag ${i + 1}: 'window' muss eine binary_sensor-Entitaet sein.`);
+      }
+      if (obj.current_sensor && (typeof obj.current_sensor !== 'string' || !obj.current_sensor.startsWith('sensor.'))) {
+        throw new Error(`Eintrag ${i + 1}: 'current_sensor' muss eine sensor-Entitaet sein.`);
       }
       return obj;
     });
@@ -216,9 +219,15 @@ class ClimateRowCard extends HTMLElement {
     top.appendChild(badges);
     root.appendChild(top);
 
+    const temps = document.createElement('div');
+    temps.className = 'cr-temps';
     const target = document.createElement('div');
     target.className = 'cr-target';
-    root.appendChild(target);
+    const current = document.createElement('div');
+    current.className = 'cr-current';
+    temps.appendChild(target);
+    temps.appendChild(current);
+    root.appendChild(temps);
 
     const sliderWrap = document.createElement('div');
     sliderWrap.className = 'cr-slider-wrap';
@@ -277,10 +286,6 @@ class ClimateRowCard extends HTMLElement {
 
     mid.appendChild(controls);
     root.appendChild(mid);
-
-    const current = document.createElement('div');
-    current.className = 'cr-current';
-    root.appendChild(current);
 
     root.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -451,10 +456,8 @@ class ClimateRowCard extends HTMLElement {
 
     if (this._config.show_current) {
       els.current.style.display = '';
-      const cur = so?.attributes?.current_temperature;
-      els.current.textContent = (cur !== undefined && cur !== null)
-        ? `Raum ${this._fmtTemp(cur)}`
-        : '';
+      const cur = this._readCurrentTemp(item, so);
+      els.current.textContent = (cur !== null) ? `Raum ${this._fmtTemp(cur)}` : '';
     } else {
       els.current.style.display = 'none';
     }
@@ -524,6 +527,18 @@ class ClimateRowCard extends HTMLElement {
     const ws = this._hass?.states?.[item.window];
     if (!ws) return false;
     return ws.state === 'on';
+  }
+
+  _readCurrentTemp(item, so) {
+    if (item?.current_sensor) {
+      const ss = this._hass?.states?.[item.current_sensor];
+      if (ss && ss.state !== 'unavailable' && ss.state !== 'unknown') {
+        const v = Number(ss.state);
+        if (!Number.isNaN(v)) return v;
+      }
+    }
+    const a = so?.attributes?.current_temperature;
+    return (a !== undefined && a !== null) ? a : null;
   }
 
   _fmtTemp(t) {
@@ -604,20 +619,27 @@ class ClimateRowCard extends HTMLElement {
       .cr-action[data-action="fan"]        { background: rgba(20,184,166,0.18); color: #14b8a6; }
       .cr-action[data-action="off"]        { opacity: 0.7; }
 
+      .cr-temps {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        line-height: 1.05;
+      }
       .cr-target {
         font-size: 1.7rem; font-weight: 700;
         color: var(--primary-text-color);
         font-variant-numeric: tabular-nums;
-        text-align: center;
-        line-height: 1.05;
         letter-spacing: -0.5px;
       }
       .cr-current {
-        font-size: 0.78rem;
+        font-size: 0.82rem;
         color: var(--secondary-text-color);
-        text-align: center;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
       }
+      .cr-current:empty { display: none; }
 
       .cr-mid {
         display: flex; flex-direction: column;
@@ -886,20 +908,24 @@ class ClimateRowCardEditor extends HTMLElement {
     this._config = {};
     this._namesByEntity = {};
     this._windowsByEntity = {};
+    this._currentSensorsByEntity = {};
     this._lastNamesKey = '';
     this._nameInputs = {};
     this._windowSelectors = {};
+    this._currentSensorSelectors = {};
   }
 
   setConfig(config) {
     this._config = config || {};
     this._namesByEntity = {};
     this._windowsByEntity = {};
+    this._currentSensorsByEntity = {};
     if (Array.isArray(this._config.entities)) {
       for (const e of this._config.entities) {
         if (e && typeof e === 'object' && e.entity) {
           if (e.name) this._namesByEntity[e.entity] = e.name;
           if (e.window) this._windowsByEntity[e.entity] = e.window;
+          if (e.current_sensor) this._currentSensorsByEntity[e.entity] = e.current_sensor;
         }
       }
     }
@@ -992,14 +1018,15 @@ class ClimateRowCardEditor extends HTMLElement {
         }
         .crr-entity-fields {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-          gap: 8px;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+          gap: 6px 8px;
         }
         .crr-entity-fields label {
           display: flex; flex-direction: column; gap: 4px;
           font-size: 0.75rem; color: var(--secondary-text-color);
           min-width: 0;
         }
+        .crr-entity-fields .crr-full { grid-column: 1 / -1; }
         .crr-input, .crr-select {
           font: inherit; font-size: 0.85rem;
           padding: 7px 10px;
@@ -1028,8 +1055,8 @@ class ClimateRowCardEditor extends HTMLElement {
       const hint = document.createElement('div');
       hint.className = 'crr-hint';
       hint.innerHTML =
-        'Pro Thermostat l&auml;sst sich unten ein eigener Name und ein <code>binary_sensor</code> als Fensterkontakt festlegen. ' +
-        'Bleibt der Fensterkontakt leer, wird f&uuml;r dieses Thermostat nie ein Fenster-Symbol angezeigt.';
+        'Pro Thermostat l&auml;sst sich unten ein eigener Name, ein <code>binary_sensor</code> als Fensterkontakt und ein <code>sensor</code> als externer Ist-Temperatur-Sensor festlegen. ' +
+        'Ohne Ist-Sensor wird das <code>current_temperature</code>-Attribut der Climate-Entit&auml;t verwendet.';
       wrap.appendChild(form);
       wrap.appendChild(entitiesSection);
       wrap.appendChild(hint);
@@ -1053,13 +1080,17 @@ class ClimateRowCardEditor extends HTMLElement {
     if (key === this._lastNamesKey) {
       for (const id of entities) {
         const input = this._nameInputs[id];
-        const sel = this._windowSelectors[id];
+        const wsel = this._windowSelectors[id];
+        const csel = this._currentSensorSelectors[id];
         if (input && this.shadowRoot.activeElement !== input) {
           const v = this._namesByEntity[id] ?? '';
           if (input.value !== v) input.value = v;
         }
-        if (sel && this.shadowRoot.activeElement !== sel) {
-          this._populateWindowOptions(sel, id);
+        if (wsel && this.shadowRoot.activeElement !== wsel) {
+          this._populateBinarySensorOptions(wsel, this._windowsByEntity[id] ?? '');
+        }
+        if (csel && this.shadowRoot.activeElement !== csel) {
+          this._populateTempSensorOptions(csel, this._currentSensorsByEntity[id] ?? '');
         }
       }
       return;
@@ -1069,6 +1100,7 @@ class ClimateRowCardEditor extends HTMLElement {
     this._entitiesSection.innerHTML = '';
     this._nameInputs = {};
     this._windowSelectors = {};
+    this._currentSensorSelectors = {};
     if (!entities.length) return;
 
     const heading = document.createElement('div');
@@ -1117,28 +1149,57 @@ class ClimateRowCardEditor extends HTMLElement {
       winLbl.textContent = 'Fensterkontakt (binary_sensor)';
       const winSel = document.createElement('select');
       winSel.className = 'crr-select';
-      this._populateWindowOptions(winSel, id);
+      this._populateBinarySensorOptions(winSel, this._windowsByEntity[id] ?? '');
       winSel.addEventListener('change', () => this._onWindowChange(id, winSel.value));
       winLbl.appendChild(winSel);
       fields.appendChild(winLbl);
+
+      const curLbl = document.createElement('label');
+      curLbl.className = 'crr-full';
+      curLbl.textContent = 'Ist-Temperatur-Sensor (extern, optional)';
+      const curSel = document.createElement('select');
+      curSel.className = 'crr-select';
+      this._populateTempSensorOptions(curSel, this._currentSensorsByEntity[id] ?? '');
+      curSel.addEventListener('change', () => this._onCurrentSensorChange(id, curSel.value));
+      curLbl.appendChild(curSel);
+      fields.appendChild(curLbl);
 
       row.appendChild(fields);
       this._entitiesSection.appendChild(row);
       this._nameInputs[id] = nameInput;
       this._windowSelectors[id] = winSel;
+      this._currentSensorSelectors[id] = curSel;
     }
   }
 
-  _populateWindowOptions(sel, entityId) {
-    const current = this._windowsByEntity[entityId] ?? '';
+  _populateBinarySensorOptions(sel, currentValue) {
     const sensors = this._hass
       ? Object.keys(this._hass.states)
           .filter((id) => id.startsWith('binary_sensor.'))
           .sort()
       : [];
-    const existingValues = Array.from(sel.options).map((o) => o.value);
+    this._fillSensorSelect(sel, sensors, currentValue);
+  }
+
+  _populateTempSensorOptions(sel, currentValue) {
+    const sensors = this._hass
+      ? Object.entries(this._hass.states)
+          .filter(([id, st]) =>
+            id.startsWith('sensor.') &&
+            (st?.attributes?.device_class === 'temperature' ||
+             st?.attributes?.unit_of_measurement === '°C' ||
+             st?.attributes?.unit_of_measurement === '°F')
+          )
+          .map(([id]) => id)
+          .sort()
+      : [];
+    this._fillSensorSelect(sel, sensors, currentValue);
+  }
+
+  _fillSensorSelect(sel, sensors, currentValue) {
+    const existing = Array.from(sel.options).map((o) => o.value);
     const want = ['', ...sensors];
-    const same = existingValues.length === want.length && want.every((v, i) => existingValues[i] === v);
+    const same = existing.length === want.length && want.every((v, i) => existing[i] === v);
     if (!same) {
       sel.innerHTML = '';
       const none = document.createElement('option');
@@ -1153,7 +1214,7 @@ class ClimateRowCardEditor extends HTMLElement {
         sel.appendChild(opt);
       }
     }
-    if (sel.value !== current) sel.value = current;
+    if (sel.value !== currentValue) sel.value = currentValue;
   }
 
   _onNameInput(entityId, raw) {
@@ -1169,19 +1230,28 @@ class ClimateRowCardEditor extends HTMLElement {
     this._emitConfig();
   }
 
+  _onCurrentSensorChange(entityId, value) {
+    if (value) this._currentSensorsByEntity[entityId] = value;
+    else delete this._currentSensorsByEntity[entityId];
+    this._emitConfig();
+  }
+
+  _buildEntityEntry(id) {
+    const name = this._namesByEntity[id];
+    const win = this._windowsByEntity[id];
+    const cur = this._currentSensorsByEntity[id];
+    if (name || win || cur) {
+      const obj = { entity: id };
+      if (name) obj.name = name;
+      if (win) obj.window = win;
+      if (cur) obj.current_sensor = cur;
+      return obj;
+    }
+    return id;
+  }
+
   _emitConfig() {
-    const ids = this._selectedEntityIds();
-    const entities = ids.map((id) => {
-      const name = this._namesByEntity[id];
-      const win = this._windowsByEntity[id];
-      if (name || win) {
-        const obj = { entity: id };
-        if (name) obj.name = name;
-        if (win) obj.window = win;
-        return obj;
-      }
-      return id;
-    });
+    const entities = this._selectedEntityIds().map((id) => this._buildEntityEntry(id));
     this._config = { ...this._config, entities };
     this.dispatchEvent(
       new CustomEvent('config-changed', { detail: { config: this._config }, bubbles: true, composed: true })
@@ -1195,23 +1265,12 @@ class ClimateRowCardEditor extends HTMLElement {
 
     if (Array.isArray(value.entities)) {
       const stillSelected = new Set(value.entities);
-      for (const k of Object.keys(this._namesByEntity)) {
-        if (!stillSelected.has(k)) delete this._namesByEntity[k];
-      }
-      for (const k of Object.keys(this._windowsByEntity)) {
-        if (!stillSelected.has(k)) delete this._windowsByEntity[k];
-      }
-      next.entities = value.entities.map((id) => {
-        const name = this._namesByEntity[id];
-        const win = this._windowsByEntity[id];
-        if (name || win) {
-          const obj = { entity: id };
-          if (name) obj.name = name;
-          if (win) obj.window = win;
-          return obj;
+      for (const map of [this._namesByEntity, this._windowsByEntity, this._currentSensorsByEntity]) {
+        for (const k of Object.keys(map)) {
+          if (!stillSelected.has(k)) delete map[k];
         }
-        return id;
-      });
+      }
+      next.entities = value.entities.map((id) => this._buildEntityEntry(id));
     }
 
     for (const k of ['title', 'icon', 'accent_color', 'track_color', 'orientation']) {

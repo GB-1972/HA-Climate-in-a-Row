@@ -79,6 +79,7 @@ entities:
     window: binary_sensor.schlafzimmer_fenster
   - entity: climate.bad
     window: binary_sensor.bad_fenster
+    current_sensor: sensor.bad_temperatur
 ```
 
 ### Optionen
@@ -111,6 +112,7 @@ In Objekt-Form `entities:`:
 | `entity` | string (Pflicht) | `climate.*`-ID des Thermostats. |
 | `name` | string | Anzeigename. Leer/unset → Friendly-Name der Entität. |
 | `window` | string | `binary_sensor.*`-ID des zugeordneten Fensterkontakts. Wenn der Sensor `on` ist, erscheint das Fenster-Symbol. Ohne `window` wird nie ein Symbol angezeigt. |
+| `current_sensor` | string | `sensor.*`-ID eines externen Ist-Temperatur-Sensors. Wenn gesetzt und der Sensor liefert eine Zahl, wird dieser Wert als Raumtemperatur angezeigt. Ohne `current_sensor` wird das `current_temperature`-Attribut der Climate-Entität verwendet. |
 
 ### UI-Editor
 
