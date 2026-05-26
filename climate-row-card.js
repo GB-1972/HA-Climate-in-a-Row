@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.0.1';
+const CRC_VERSION = '1.0.2';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -242,11 +242,10 @@ class ClimateRowCard extends HTMLElement {
     sliderWrap.appendChild(plus);
     sliderWrap.appendChild(slider);
     sliderWrap.appendChild(minus);
-    root.appendChild(sliderWrap);
 
-    const current = document.createElement('div');
-    current.className = 'cr-current';
-    root.appendChild(current);
+    const mid = document.createElement('div');
+    mid.className = 'cr-mid';
+    mid.appendChild(sliderWrap);
 
     const controls = document.createElement('div');
     controls.className = 'cr-controls';
@@ -276,7 +275,12 @@ class ClimateRowCard extends HTMLElement {
     });
     controls.appendChild(presetSelect);
 
-    root.appendChild(controls);
+    mid.appendChild(controls);
+    root.appendChild(mid);
+
+    const current = document.createElement('div');
+    current.className = 'cr-current';
+    root.appendChild(current);
 
     root.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -615,6 +619,23 @@ class ClimateRowCard extends HTMLElement {
         font-variant-numeric: tabular-nums;
       }
 
+      .cr-mid {
+        display: flex; flex-direction: column;
+        gap: 6px;
+      }
+      .cr-horizontal .cr-mid {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .cr-horizontal .cr-mid .cr-slider-wrap {
+        flex: 1 1 120px;
+        min-width: 100px;
+      }
+      .cr-horizontal .cr-mid .cr-controls {
+        flex: 0 0 auto;
+      }
       .cr-slider-wrap {
         display: flex; gap: 6px;
         align-items: center; justify-content: center;
@@ -643,8 +664,11 @@ class ClimateRowCard extends HTMLElement {
       .cr-horizontal .cr-btn { width: 32px; height: 26px; }
       .cr-horizontal .cr-slider { height: 28px; padding: 4px; }
       .cr-horizontal .cr-hvac-btn { padding: 4px 8px; font-size: 0.74rem; }
-      .cr-horizontal .cr-preset { padding: 4px 22px 4px 8px; font-size: 0.74rem; }
-      .cr-horizontal .cr-controls { margin-top: 0; gap: 4px; }
+      .cr-horizontal .cr-preset {
+        padding: 4px 22px 4px 8px; font-size: 0.74rem;
+        flex: 0 1 130px; min-width: 90px; max-width: 160px;
+      }
+      .cr-horizontal .cr-controls { margin-top: 0; gap: 4px; flex-wrap: nowrap; }
 
       .cr-btn {
         appearance: none; border: none;
