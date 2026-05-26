@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.1.3';
+const CRC_VERSION = '1.1.4';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -58,6 +58,16 @@ const PRESET_ICONS = {
   schedule: 'mdi:calendar-clock',
 };
 const presetIcon = (p) => PRESET_ICONS[String(p).toLowerCase()] ?? 'mdi:tune-variant';
+
+const PRESET_COLORS = {
+  frost: '#3b82f6',
+  'frost protection': '#3b82f6',
+  frost_protection: '#3b82f6',
+  eco: '#22c55e',
+  comfort: '#15803d',
+  boost: '#ef4444',
+};
+const presetColor = (p) => PRESET_COLORS[String(p).toLowerCase()] ?? '';
 
 const HVAC_MODE_LABELS = {
   off: 'aus',
@@ -579,6 +589,8 @@ class ClimateRowCard extends HTMLElement {
             itemBtn.dataset.value = p;
             const ic = document.createElement('ha-icon');
             ic.setAttribute('icon', presetIcon(p));
+            const col = presetColor(p);
+            if (col) ic.style.color = col;
             const lbl = document.createElement('span');
             lbl.textContent = p;
             itemBtn.appendChild(ic);
@@ -593,7 +605,9 @@ class ClimateRowCard extends HTMLElement {
         }
         const items = els.presetMenu.querySelectorAll('.cr-preset-item');
         items.forEach((it) => it.classList.toggle('cr-preset-active', it.dataset.value === current));
-        els.presetBtnIcon.setAttribute('icon', presetIcon(current || presets[0]));
+        const btnPreset = current || presets[0];
+        els.presetBtnIcon.setAttribute('icon', presetIcon(btnPreset));
+        els.presetBtnIcon.style.color = presetColor(btnPreset);
         els.presetBtn.title = `Preset: ${current || '–'}`;
         els.presetBtn.disabled = unavailable;
         if (unavailable) els.closePresetMenu();
