@@ -1,4 +1,4 @@
-const CRC_VERSION = '1.1.5';
+const CRC_VERSION = '1.1.6';
 
 console.info(
   `%c CLIMATE-ROW-CARD %c v${CRC_VERSION} `,
@@ -248,18 +248,6 @@ class ClimateRowCard extends HTMLElement {
     name.className = 'cr-name';
     top.appendChild(name);
 
-    const badges = document.createElement('div');
-    badges.className = 'cr-badges';
-
-    const windowIcon = document.createElement('ha-icon');
-    windowIcon.className = 'cr-window';
-    windowIcon.setAttribute('icon', 'mdi:window-open-variant');
-    windowIcon.title = 'Fenster offen';
-    badges.appendChild(windowIcon);
-
-    top.appendChild(badges);
-    root.appendChild(top);
-
     const temps = document.createElement('div');
     temps.className = 'cr-temps';
     const target = document.createElement('div');
@@ -272,7 +260,19 @@ class ClimateRowCard extends HTMLElement {
     temps.appendChild(target);
     temps.appendChild(sep);
     temps.appendChild(current);
-    root.appendChild(temps);
+    top.appendChild(temps);
+
+    const badges = document.createElement('div');
+    badges.className = 'cr-badges';
+
+    const windowIcon = document.createElement('ha-icon');
+    windowIcon.className = 'cr-window';
+    windowIcon.setAttribute('icon', 'mdi:window-open-variant');
+    windowIcon.title = 'Fenster offen';
+    badges.appendChild(windowIcon);
+
+    top.appendChild(badges);
+    root.appendChild(top);
 
     const sliderWrap = document.createElement('div');
     sliderWrap.className = 'cr-slider-wrap';
@@ -752,16 +752,14 @@ class ClimateRowCard extends HTMLElement {
       .cr-temps {
         display: flex;
         align-items: baseline;
-        justify-content: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        line-height: 1.05;
+        gap: 6px;
+        flex: 0 0 auto;
+        white-space: nowrap;
       }
       .cr-target {
-        font-size: 1.7rem; font-weight: 700;
+        font-size: 1rem; font-weight: 700;
         color: var(--primary-text-color);
         font-variant-numeric: tabular-nums;
-        letter-spacing: -0.5px;
       }
       .cr-current {
         font-size: 0.82rem;
@@ -771,9 +769,9 @@ class ClimateRowCard extends HTMLElement {
       }
       .cr-current:empty { display: none; }
       .cr-temps-sep {
-        font-size: 0.82rem;
+        font-size: 0.85rem;
         color: var(--secondary-text-color);
-        opacity: 0.7;
+        opacity: 0.55;
       }
 
       .cr-mid {
@@ -816,8 +814,6 @@ class ClimateRowCard extends HTMLElement {
         gap: 4px;
       }
       .cr-horizontal .cr-top { min-height: 20px; }
-      .cr-horizontal .cr-target { font-size: 1.2rem; }
-      .cr-horizontal .cr-current { font-size: 0.72rem; }
       .cr-horizontal .cr-btn { width: 32px; height: 26px; }
       .cr-horizontal .cr-slider { height: 28px; padding: 4px; }
       .cr-horizontal .cr-hvac-btn { width: 32px; height: 26px; }
@@ -994,8 +990,6 @@ class ClimateRowCard extends HTMLElement {
 
       @media (max-width: 600px) {
         .cr-panel { padding: 10px 8px; gap: 6px; }
-        .cr-target { font-size: 1.45rem; }
-        .cr-hvac-btn { padding: 5px 8px; font-size: 0.74rem; }
       }
     `;
   }
